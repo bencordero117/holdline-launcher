@@ -140,5 +140,44 @@ namespace HoldlineLauncher
                 // cannot join.
             }
         }
+
+        private const string AlienEspName = "AvPAlien.esp";
+
+        private static string PluginsTxtPath() => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Skyrim Special Edition", "plugins.txt");
+
+        /// <summary>
+        /// Turns the Alien mod OFF for the server: un-ticks AvPAlien.esp in
+        /// plugins.txt (keeps the line, drops the '*'). Single player enables
+        /// it; Join and Fix my game both call this, so "server = Alien off" is
+        /// always consistent until the multiplayer Alien work ships. Returns
+        /// true if it changed something. Never throws.
+        /// </summary>
+        public static bool DisableAlienEsp()
+        {
+            try
+            {
+                var txt = PluginsTxtPath();
+                if (!File.Exists(txt)) return false;
+
+                var lines = new List<string>(File.ReadAllLines(txt));
+                var changed = false;
+                for (var i = 0; i < lines.Count; i++)
+                {
+                    if (string.Equals(lines[i].Trim(), "*" + AlienEspName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        lines[i] = AlienEspName;
+                        changed = true;
+                    }
+                }
+                if (changed) File.WriteAllLines(txt, lines);
+                return changed;
+            }
+            catch
+            {
+                return false;
+            }
+        }
     }
 }

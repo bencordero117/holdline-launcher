@@ -473,6 +473,13 @@ namespace HoldlineLauncher
                         File.Move(nirnOff, nirnOn);
                         report.Fixed.Add("The NirnLab browser had been switched off for single player. Switched it back on.");
                     }
+                    //  17 Oct 2026: single player enables the Alien ESP; the
+                    //  server keeps it off so "server = Alien off" stays
+                    //  consistent until the multiplayer Alien work ships.
+                    if (PluginListGuard.DisableAlienEsp())
+                    {
+                        report.Fixed.Add("The Alien mod had been switched on for single player. Switched it back off for the server.");
+                    }
                     var pluginsDir = Path.Combine(platform, "Plugins");
                     if (Directory.Exists(pluginsDir))
                     {

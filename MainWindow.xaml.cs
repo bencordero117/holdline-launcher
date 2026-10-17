@@ -2050,36 +2050,8 @@ private void HoldList_SelectionChanged(object sender, SelectionChangedEventArgs 
         }
     }
 
-    /// <summary>
-    /// Back to the server: un-ticks AvPAlien.esp (keeps the line, removes the
-    /// '*') so the Alien mod stays gated for multiplayer until Stage 2. Returns
-    /// true if it turned one off.
-    /// </summary>
-    private static bool DisableAlienEsp(string root)
-    {
-        try
-        {
-            var txt = PluginsTxtPath();
-            if (!File.Exists(txt)) return false;
-
-            var lines = new List<string>(File.ReadAllLines(txt));
-            var changed = false;
-            for (var i = 0; i < lines.Count; i++)
-            {
-                if (string.Equals(lines[i].Trim(), "*" + AlienEspName, StringComparison.OrdinalIgnoreCase))
-                {
-                    lines[i] = AlienEspName; // keep the line, untick it
-                    changed = true;
-                }
-            }
-            if (changed) WritePluginsTxt(txt, lines);
-            return changed;
-        }
-        catch
-        {
-            return false;
-        }
-    }
+    //  Disabling the Alien ESP lives in PluginListGuard.DisableAlienEsp so the
+    //  switch and Fix my game share one implementation.
 
     private static void WritePluginsTxt(string path, List<string> lines)
     {
@@ -2134,8 +2106,9 @@ private void HoldList_SelectionChanged(object sender, SelectionChangedEventArgs 
         //  Multiplayer wants Engine Fixes OFF - both halves parked together.
         SetEngineFixes(root, enable: false, result);
 
-        //  Alien mod stays gated for the server until Stage 2 (sync).
-        if (DisableAlienEsp(root)) result.Off.Add("Alien mod (off for multiplayer)");
+        //  Alien mod stays gated for the server until Stage 2 (sync). Shared
+        //  with Fix my game (Repair.cs) so "server = Alien off" is consistent.
+        if (PluginListGuard.DisableAlienEsp()) result.Off.Add("Alien mod (off for multiplayer)");
         return result;
     }
 
