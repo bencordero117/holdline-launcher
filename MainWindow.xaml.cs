@@ -1861,7 +1861,6 @@ private void HoldList_SelectionChanged(object sender, SelectionChangedEventArgs 
     private static string PlatformDllPath(string skyrim) => Path.Combine(skyrim, "Data", "SKSE", "Plugins", "SkyrimPlatform.dll");
     private static string EngineFixesDllPath(string skyrim) => Path.Combine(skyrim, "Data", "SKSE", "Plugins", "EngineFixes.dll");
     private static string NirnLabDllPath(string skyrim) => Path.Combine(skyrim, "Data", "SKSE", "Plugins", "NirnLabUIPlugin.dll");
-    private static string AlienDllPath(string skyrim) => Path.Combine(skyrim, "Data", "SKSE", "Plugins", "AvPAlien.dll");
     //  The SKSE64 Preloader half of SSE Engine Fixes lives beside SkyrimSE.exe,
     //  NOT in Data. It is the proxy d3dx9_42.dll.
     private static string PreloaderPath(string skyrim) => Path.Combine(skyrim, "d3dx9_42.dll");
@@ -2074,16 +2073,12 @@ private void HoldList_SelectionChanged(object sender, SelectionChangedEventArgs 
         }
         //  NirnLab UI keeps a hidden menu ("NirnLabMultiLayerMenu") open that
         //  lacks Skyrim's allow-saving flag, so single-player Save goes grey.
-        //  AvP Alien build 76+ (AvPAlien.dll) fixes that from inside the game
-        //  AND the Alien 3D editor needs NirnLab in single player - so when the
-        //  Alien mod is installed we leave NirnLab ON. Only when it is absent do
-        //  we park NirnLab; TurnHoldlineOn / Join / Fix my game put it back.
+        //  THIS is the save bug. Park NirnLab for single player so saving works;
+        //  TurnHoldlineOn / Join / Fix my game put it back for the server, where
+        //  Holdline needs it. (Not conditional on the Alien mod - the Alien mod
+        //  was never the cause of the save problem.)
         var nirn = NirnLabDllPath(root);
-        if (File.Exists(AlienDllPath(root)))
-        {
-            if (File.Exists(nirn)) result.Notes.Add("NirnLab kept on - the Alien mod handles saving and needs it for the 3D editor");
-        }
-        else if (File.Exists(nirn))
+        if (File.Exists(nirn))
         {
             MoveWithRetry(nirn, nirn + ".off", isFolder: false);
             result.Off.Add("NirnLab UI");
