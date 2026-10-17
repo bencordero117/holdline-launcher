@@ -1,0 +1,10 @@
+# Build output
+bin/
+obj/
+
+# Client bundle and archives — shipped as GitHub release assets, not source
+*.zip
+*.bak
+
+# Manual pre-edit source snapshots — git history replaces these
+*-backup-*.txt
