@@ -1866,6 +1866,18 @@ private void HoldList_SelectionChanged(object sender, SelectionChangedEventArgs 
     private static string PreloaderPath(string skyrim) => Path.Combine(skyrim, "d3dx9_42.dll");
     private const string EngineFixesParkSuffix = ".holdline-off";
 
+    //  Stage 1 (single player only): the AvP Alien mod. Its own ESP grants the
+    //  native transform powers (Alien / Praetorian / Predalien / Facehugger /
+    //  Chestburster Form) + an MCM, which run in plain Skyrim with no Holdline
+    //  client. So single player just needs the ESP ENABLED in plugins.txt; the
+    //  server keeps it OFF until Stage 2 wires true multiplayer load-order
+    //  matching + sync. (The Holdline admin menu can't do this in single player
+    //  - it rides NirnLab, which single player parks to let the game save.)
+    private const string AlienEspName = "AvPAlien.esp";
+    private static string PluginsTxtPath() => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "Skyrim Special Edition", "plugins.txt");
+
     //  THE SWITCH NEVER RENAMES A FOLDER - 1 Oct 2026.
     //
     //  The first version renamed Data\Platform to Platform-off. Windows refuses
@@ -1994,6 +2006,88 @@ private void HoldList_SelectionChanged(object sender, SelectionChangedEventArgs 
         return parts.Count > 0 ? string.Join(". ", parts) + "." : "Holdline was already on.";
     }
 
+    /// <summary>
+    /// Single player only: enables AvPAlien.esp in plugins.txt so the Alien
+    /// mod's native powers and MCM work in plain Skyrim. Returns true if it
+    /// flipped it on. Only ever enables a file that is actually in Data - an
+    /// enabled entry whose file is missing kills the game at the main menu
+    /// (the exact landmine PluginListGuard exists to defuse).
+    /// </summary>
+    private static bool EnableAlienEsp(string root)
+    {
+        try
+        {
+            var esp = Path.Combine(root, "Data", AlienEspName);
+            if (!File.Exists(esp)) return false;
+
+            var txt = PluginsTxtPath();
+            var lines = File.Exists(txt)
+                ? new List<string>(File.ReadAllLines(txt))
+                : new List<string>();
+
+            for (var i = 0; i < lines.Count; i++)
+            {
+                var t = lines[i].Trim();
+                if (string.Equals(t, "*" + AlienEspName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false; // already enabled, nothing to do
+                }
+                if (string.Equals(t, AlienEspName, StringComparison.OrdinalIgnoreCase))
+                {
+                    lines[i] = "*" + AlienEspName; // was disabled - tick it on
+                    WritePluginsTxt(txt, lines);
+                    return true;
+                }
+            }
+
+            lines.Add("*" + AlienEspName);
+            WritePluginsTxt(txt, lines);
+            return true;
+        }
+        catch
+        {
+            return false; // never block the switch over a load-order edit
+        }
+    }
+
+    /// <summary>
+    /// Back to the server: un-ticks AvPAlien.esp (keeps the line, removes the
+    /// '*') so the Alien mod stays gated for multiplayer until Stage 2. Returns
+    /// true if it turned one off.
+    /// </summary>
+    private static bool DisableAlienEsp(string root)
+    {
+        try
+        {
+            var txt = PluginsTxtPath();
+            if (!File.Exists(txt)) return false;
+
+            var lines = new List<string>(File.ReadAllLines(txt));
+            var changed = false;
+            for (var i = 0; i < lines.Count; i++)
+            {
+                if (string.Equals(lines[i].Trim(), "*" + AlienEspName, StringComparison.OrdinalIgnoreCase))
+                {
+                    lines[i] = AlienEspName; // keep the line, untick it
+                    changed = true;
+                }
+            }
+            if (changed) WritePluginsTxt(txt, lines);
+            return changed;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void WritePluginsTxt(string path, List<string> lines)
+    {
+        var dir = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+        File.WriteAllLines(path, lines);
+    }
+
     /// <summary>Puts every Holdline file the switch parks back where SKSE and Platform load it, and re-parks Engine Fixes (both halves) for multiplayer.</summary>
     private static SwitchResult TurnHoldlineOn(string root)
     {
@@ -2039,6 +2133,9 @@ private void HoldList_SelectionChanged(object sender, SelectionChangedEventArgs 
         }
         //  Multiplayer wants Engine Fixes OFF - both halves parked together.
         SetEngineFixes(root, enable: false, result);
+
+        //  Alien mod stays gated for the server until Stage 2 (sync).
+        if (DisableAlienEsp(root)) result.Off.Add("Alien mod (off for multiplayer)");
         return result;
     }
 
@@ -2085,6 +2182,10 @@ private void HoldList_SelectionChanged(object sender, SelectionChangedEventArgs 
         }
         //  Single player wants Engine Fixes ON - both halves together, never one.
         SetEngineFixes(root, enable: true, result);
+
+        //  Stage 1: turn the Alien mod on for single player (its own transform
+        //  powers + MCM). Multiplayer keeps it off until Stage 2.
+        if (EnableAlienEsp(root)) result.On.Add("Alien mod (single-player powers)");
         return result;
     }
 
