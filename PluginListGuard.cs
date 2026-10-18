@@ -148,36 +148,53 @@ namespace HoldlineLauncher
             "Skyrim Special Edition", "plugins.txt");
 
         /// <summary>
-        /// Turns the Alien mod OFF for the server: un-ticks AvPAlien.esp in
-        /// plugins.txt (keeps the line, drops the '*'). Single player enables
-        /// it; Join and Fix my game both call this, so "server = Alien off" is
-        /// always consistent until the multiplayer Alien work ships. Returns
-        /// true if it changed something. Never throws.
+        /// Keeps the Alien mod ON: ensures AvPAlien.esp is enabled (*) in
+        /// plugins.txt so it loads in multiplayer and single player alike. Only
+        /// enables it when the file is actually in Data (an enabled entry whose
+        /// file is missing kills the game at the menu). Ticks the existing line
+        /// IN PLACE so its load-order position - and therefore the Alien's form
+        /// IDs - stay put. Returns true if it changed something. Never throws.
+        /// Shared by the Single player switch, Join, and Fix my game.
         /// </summary>
-        public static bool DisableAlienEsp()
+        public static bool EnableAlienEsp(string skyrimDataDir)
         {
             try
             {
-                var txt = PluginsTxtPath();
-                if (!File.Exists(txt)) return false;
+                if (string.IsNullOrEmpty(skyrimDataDir)) return false;
+                if (!File.Exists(Path.Combine(skyrimDataDir, AlienEspName))) return false;
 
-                var lines = new List<string>(File.ReadAllLines(txt));
-                var changed = false;
+                var txt = PluginsTxtPath();
+                var lines = File.Exists(txt)
+                    ? new List<string>(File.ReadAllLines(txt))
+                    : new List<string>();
+
                 for (var i = 0; i < lines.Count; i++)
                 {
-                    if (string.Equals(lines[i].Trim(), "*" + AlienEspName, StringComparison.OrdinalIgnoreCase))
+                    var t = lines[i].Trim();
+                    if (string.Equals(t, "*" + AlienEspName, StringComparison.OrdinalIgnoreCase))
+                        return false; // already on
+                    if (string.Equals(t, AlienEspName, StringComparison.OrdinalIgnoreCase))
                     {
-                        lines[i] = AlienEspName;
-                        changed = true;
+                        lines[i] = "*" + AlienEspName; // tick in place - keeps its slot/form IDs
+                        WriteLines(txt, lines);
+                        return true;
                     }
                 }
-                if (changed) File.WriteAllLines(txt, lines);
-                return changed;
+                lines.Add("*" + AlienEspName); // not listed yet - add it
+                WriteLines(txt, lines);
+                return true;
             }
             catch
             {
                 return false;
             }
+        }
+
+        private static void WriteLines(string path, List<string> lines)
+        {
+            var dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            File.WriteAllLines(path, lines);
         }
     }
 }

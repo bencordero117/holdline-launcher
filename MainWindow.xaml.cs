@@ -2050,8 +2050,8 @@ private void HoldList_SelectionChanged(object sender, SelectionChangedEventArgs 
         }
     }
 
-    //  Disabling the Alien ESP lives in PluginListGuard.DisableAlienEsp so the
-    //  switch and Fix my game share one implementation.
+    //  The Alien mod is kept ON everywhere; Fix my game uses the matching
+    //  PluginListGuard.EnableAlienEsp so the behaviour is consistent.
 
     private static void WritePluginsTxt(string path, List<string> lines)
     {
@@ -2106,9 +2106,9 @@ private void HoldList_SelectionChanged(object sender, SelectionChangedEventArgs 
         //  Multiplayer wants Engine Fixes OFF - both halves parked together.
         SetEngineFixes(root, enable: false, result);
 
-        //  Alien mod stays gated for the server until Stage 2 (sync). Shared
-        //  with Fix my game (Repair.cs) so "server = Alien off" is consistent.
-        if (PluginListGuard.DisableAlienEsp()) result.Off.Add("Alien mod (off for multiplayer)");
+        //  The Alien mod is ON everywhere now - keep it enabled on the way to
+        //  the server too (same enable used by the switch and Fix my game).
+        if (EnableAlienEsp(root)) result.On.Add("Alien mod");
         return result;
     }
 
@@ -2156,9 +2156,8 @@ private void HoldList_SelectionChanged(object sender, SelectionChangedEventArgs 
         //  Single player wants Engine Fixes ON - both halves together, never one.
         SetEngineFixes(root, enable: true, result);
 
-        //  Stage 1: turn the Alien mod on for single player (its own transform
-        //  powers + MCM). Multiplayer keeps it off until Stage 2.
-        if (EnableAlienEsp(root)) result.On.Add("Alien mod (single-player powers)");
+        //  Keep the Alien mod on (its transform powers + MCM) for single player.
+        if (EnableAlienEsp(root)) result.On.Add("Alien mod");
         return result;
     }
 
