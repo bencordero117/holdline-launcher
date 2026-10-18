@@ -393,8 +393,27 @@ namespace HoldlineLauncher
             {
                 var relative = Path.GetRelativePath(sourceClientDataDir, filePath);
                 var destPath = Path.Combine(skyrimDataDir, relative);
-                File.Copy(filePath, destPath, overwrite: true);
+                CopyWithRetry(filePath, destPath);
             }
+        }
+
+        //  A file can stay locked for a moment even after Skyrim is CLOSED - the
+        //  OS, antivirus, or a lingering skse64_loader can hold a handle briefly
+        //  (MpClientPlugin.dll is the one that bites). Retry a few times with a
+        //  short wait so a transient lock never fails the whole install.
+        private static void CopyWithRetry(string from, string to)
+        {
+            Exception? last = null;
+            for (var attempt = 0; attempt < 6; attempt++)
+            {
+                try { File.Copy(from, to, overwrite: true); return; }
+                catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+                {
+                    last = ex;
+                    System.Threading.Thread.Sleep(400);
+                }
+            }
+            throw last ?? new IOException("Could not copy " + Path.GetFileName(to));
         }
 
         /// <summary>

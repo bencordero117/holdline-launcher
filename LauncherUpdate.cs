@@ -74,7 +74,7 @@ namespace HoldlineLauncher
         // (tag "v1.0.5" <-> CurrentVersion "1.0.5"). If this is ever left
         // behind, every launcher in the wild re-downloads the build it is
         // already running, every single start.
-        public const string CurrentVersion = "1.0.37";
+        public const string CurrentVersion = "1.0.38";
 
         // Name of the file the new build is downloaded to before the swap.
         //

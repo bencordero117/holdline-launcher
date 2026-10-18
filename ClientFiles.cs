@@ -226,6 +226,21 @@ namespace HoldlineLauncher
         private static string MarkerPath(string skyrimDataDir) =>
             Path.Combine(skyrimDataDir, "Platform", "holdline-client-version.txt");
 
+        //  True (as a process name) if Skyrim/SKSE is still running and would
+        //  hold the client DLLs open; null if nothing is running.
+        private static string? SkyrimProcessRunning()
+        {
+            foreach (var name in new[] { "SkyrimSE", "skse64_loader", "SkyrimVR" })
+            {
+                try
+                {
+                    if (System.Diagnostics.Process.GetProcessesByName(name).Length > 0) return name;
+                }
+                catch { }
+            }
+            return null;
+        }
+
         /// <summary>
         /// SHA-256 of the skymp5-client.js we ship in the current release.
         ///
@@ -874,6 +889,19 @@ namespace HoldlineLauncher
                 }
 
                 report.Report("Installing multiplayer files into Skyrim...");
+
+                //  A running game holds MpClientPlugin.dll / SkyrimPlatform.dll
+                //  open, so the copy below would fail with "used by another
+                //  process". Catch it here with something the player can act on.
+                //  (A file briefly locked after a CLOSE is handled separately by
+                //  the copy's own retry.)
+                var stillRunning = SkyrimProcessRunning();
+                if (stillRunning != null)
+                {
+                    return "Skyrim is still running, so Holdline can't update its files.\n\n" +
+                           "Close Skyrim completely (and the SKSE loader if it's still open), " +
+                           "then press Join again.";
+                }
 
                 // CopyClientData backs up the vanilla script files it's about
                 // to overwrite before it overwrites them. Off the UI thread:
