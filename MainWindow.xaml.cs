@@ -1861,6 +1861,11 @@ private void HoldList_SelectionChanged(object sender, SelectionChangedEventArgs 
     private static string PlatformDllPath(string skyrim) => Path.Combine(skyrim, "Data", "SKSE", "Plugins", "SkyrimPlatform.dll");
     private static string EngineFixesDllPath(string skyrim) => Path.Combine(skyrim, "Data", "SKSE", "Plugins", "EngineFixes.dll");
     private static string NirnLabDllPath(string skyrim) => Path.Combine(skyrim, "Data", "SKSE", "Plugins", "NirnLabUIPlugin.dll");
+    //  The AvP Alien mod's SKSE plugin and its ESP. Their presence means the
+    //  Alien mod is installed, so single player must keep NirnLab (the F10 3D
+    //  editor needs it).
+    private static string AlienDllPath(string skyrim) => Path.Combine(skyrim, "Data", "SKSE", "Plugins", "AvPAlien.dll");
+    private static string AlienEspPath(string skyrim) => Path.Combine(skyrim, "Data", AlienEspName);
     //  The SKSE64 Preloader half of SSE Engine Fixes lives beside SkyrimSE.exe,
     //  NOT in Data. It is the proxy d3dx9_42.dll.
     private static string PreloaderPath(string skyrim) => Path.Combine(skyrim, "d3dx9_42.dll");
@@ -2141,14 +2146,32 @@ private void HoldList_SelectionChanged(object sender, SelectionChangedEventArgs 
             MoveWithRetry(spDll, spDll + ".off", isFolder: false);
             result.Off.Add("SkyrimPlatform.dll");
         }
-        //  NirnLab UI keeps a hidden menu ("NirnLabMultiLayerMenu") open that
-        //  lacks Skyrim's allow-saving flag, so single-player Save goes grey.
-        //  THIS is the save bug. Park NirnLab for single player so saving works;
-        //  TurnHoldlineOn / Join / Fix my game put it back for the server, where
-        //  Holdline needs it. (Not conditional on the Alien mod - the Alien mod
-        //  was never the cause of the save problem.)
+        //  NirnLab UI and single-player saving - corrected 18 Oct 2026.
+        //
+        //  The save bug (Save greys out) is NOT caused by NirnLab merely being
+        //  loaded. It is caused by a NirnLab PAGE being OPEN - which only the
+        //  Holdline admin menu (a SkyrimPlatform plugin) does. SkyrimPlatform is
+        //  parked just above, so in single player nothing opens a NirnLab page,
+        //  NirnLab sits idle, and saving works with it still loaded. Tested on
+        //  Ben's machine: NirnLab present + SkyrimPlatform parked -> F10 editor
+        //  opens AND saving works.
+        //
+        //  And the AvP Alien mod's F10 3D editor REQUIRES NirnLab. Parking it
+        //  broke the Alien editor in single player. So: when the Alien mod is
+        //  installed, KEEP NirnLab (and restore it if an older switch parked it).
+        //  Only park NirnLab when the Alien mod is absent - a harmless guard for
+        //  a setup that has no use for NirnLab in single player anyway.
         var nirn = NirnLabDllPath(root);
-        if (File.Exists(nirn))
+        var alienInstalled = File.Exists(AlienDllPath(root)) || File.Exists(AlienEspPath(root));
+        if (alienInstalled)
+        {
+            if (File.Exists(nirn + ".off") && !File.Exists(nirn))
+            {
+                MoveWithRetry(nirn + ".off", nirn, isFolder: false);
+                result.On.Add("NirnLab UI (Alien editor)");
+            }
+        }
+        else if (File.Exists(nirn))
         {
             MoveWithRetry(nirn, nirn + ".off", isFolder: false);
             result.Off.Add("NirnLab UI");
