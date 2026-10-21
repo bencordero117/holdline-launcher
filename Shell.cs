@@ -148,6 +148,11 @@ public partial class MainWindow
         // IsMuted holds across Open and is re-applied on every track below.
         _music.Volume = MusicVolume;
         _music.IsMuted = _muted;
+        // Open() is async: the track is not actually ready until MediaOpened.
+        // Properties set before then can be missed, which is how a muted track
+        // change still blipped. Re-assert the mute the instant the track opens,
+        // just before it becomes audible, so a muted change is silent for good.
+        _music.MediaOpened += (_, _) => { if (_music is not null) { _music.Volume = MusicVolume; _music.IsMuted = _muted; } };
         _music.MediaEnded += (_, _) => NextTrack();
 
         // MediaFailed fires for a corrupt or half-written file. Skipping to
