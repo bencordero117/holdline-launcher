@@ -141,7 +141,13 @@ public partial class MainWindow
         }
 
         _music = new MediaPlayer();
-        _music.Volume = _muted ? 0.0 : MusicVolume;
+        // Mute is driven by IsMuted (a hard output mute), not by dropping Volume
+        // to 0. Volume-0 does not reliably hold across Open(): a just-opened
+        // track could play at full volume for about a second before the old
+        // Volume took hold, which is the blip heard when a muted song changed.
+        // IsMuted holds across Open and is re-applied on every track below.
+        _music.Volume = MusicVolume;
+        _music.IsMuted = _muted;
         _music.MediaEnded += (_, _) => NextTrack();
 
         // MediaFailed fires for a corrupt or half-written file. Skipping to
@@ -164,6 +170,10 @@ public partial class MainWindow
         {
             var path = _tracks[_trackIndex % _tracks.Count];
             _music.Open(new Uri(path, UriKind.Absolute));
+            // Re-apply the mute to the newly opened track BEFORE Play, so a muted
+            // song change starts silent instead of blipping for a second.
+            _music.Volume = MusicVolume;
+            _music.IsMuted = _muted;
             _music.Play();
         }
         catch
@@ -268,9 +278,11 @@ public partial class MainWindow
 
             if (_music is not null)
             {
-                // Volume rather than Pause, so unmuting drops you back into the
-                // track where it got to instead of restarting it.
-                _music.Volume = _muted ? 0.0 : MusicVolume;
+                // IsMuted rather than Pause, so unmuting drops you back into the
+                // track where it got to instead of restarting it. IsMuted also
+                // holds across the next track change (see PlayCurrent), so the
+                // mute stays put when a song ends and the next one starts.
+                _music.IsMuted = _muted;
             }
 
             SafeMuteLabel(_muted ? "Sound off" : "Sound on");
